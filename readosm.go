@@ -15,8 +15,8 @@ func main() {
 
 	fmt.Println("Start:", time.Now())
 
-	f, err := os.Open("./shikoku-latest.osm.pbf")
-	//f, err := os.Open("/Users/takamotokeiji/Downloads/japan-latest.osm.pbf")
+	//f, err := os.Open("/Users/takamotokeiji/Downloads/shikoku-latest.osm.pbf")
+	f, err := os.Open("/Users/takamotokeiji/Downloads/japan-latest.osm.pbf")
 	if err != nil {
 		log.Fatal(err)
 	}
