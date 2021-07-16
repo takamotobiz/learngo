@@ -1,48 +1,40 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"runtime"
+	"time"
 
-	"github.com/cheggaaa/pb"
-	"github.com/dustin/go-humanize"
-
-	//	"github.com/kkdd/osmpbf"
 	"github.com/qedus/osmpbf"
 )
 
 func main() {
-	ncpu := flag.Int("ncpu", 1, "number of CPU")
-	flag.Parse()
-	runtime.GOMAXPROCS(*ncpu)
-	for _, file := range flag.Args() {
-		worker(file)
-	}
-}
 
-func worker(file string) {
-	f, err := os.Open(file)
+	fmt.Println("Start:", time.Now())
+
+	f, err := os.Open("./shikoku-latest.osm.pbf")
+	//f, err := os.Open("/Users/takamotokeiji/Downloads/japan-latest.osm.pbf")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer f.Close()
-	stat, _ := f.Stat()
-	filesiz := int(stat.Size() / 1024)
 
 	d := osmpbf.NewDecoder(f)
+
+	// use more memory from the start, it is faster
+	d.SetBufferSize(osmpbf.MaxBlobSize)
+
+	// start decoding with several goroutines, it is faster
 	err = d.Start(runtime.GOMAXPROCS(-1))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	var nc, wc, rc, i int64
-	progressbar := pb.New(filesiz).SetUnits(pb.U_NO)
-	progressbar.Start()
-	for i = 0; ; i++ {
+	var nc, wc, rc uint64
+	for {
 		if v, err := d.Decode(); err == io.EOF {
 			break
 		} else if err != nil {
@@ -50,20 +42,21 @@ func worker(file string) {
 		} else {
 			switch v := v.(type) {
 			case *osmpbf.Node:
+				// Process Node v.
 				nc++
 			case *osmpbf.Way:
+				// Process Way v.
 				wc++
 			case *osmpbf.Relation:
+				// Process Relation v.
 				rc++
 			default:
 				log.Fatalf("unknown type %T\n", v)
 			}
 		}
-		if i%131072 == 0 {
-			progressbar.Set(int(d.GetTotalReadSize() / 1024))
-		}
 	}
-	progressbar.Set(filesiz)
-	progressbar.Finish()
-	fmt.Printf("Nodes: %s, Ways: %s, Relations: %s\n", humanize.Comma(nc), humanize.Comma(wc), humanize.Comma(rc))
+
+	fmt.Printf("Nodes: %d, Ways: %d, Relations: %d\n", nc, wc, rc)
+
+	fmt.Println("End:", time.Now())
 }
