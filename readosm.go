@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/qedus/osmpbf"
@@ -17,8 +18,8 @@ func main() {
 	fmt.Println("Start:", time.Now())
 
 	// ターゲットのosm.pbfをオープン
-	f, err := os.Open("/Users/takamotokeiji/data/shikoku-latest.osm.pbf")
-	//f, err := os.Open("/Users/takamotokeiji/data/japan-latest.osm.pbf")
+	//f, err := os.Open("/Users/takamotokeiji/data/osm.pbf/shikoku-latest.osm.pbf")
+	f, err := os.Open("/Users/takamotokeiji/data/osm.pbf/japan-latest.osm.pbf")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -46,7 +47,7 @@ func main() {
 	}
 
 	var nc, wc, rc uint64
-	var fi bool = true
+	var endl bool
 	for {
 		if v, err := d.Decode(); err == io.EOF {
 			break
@@ -56,17 +57,17 @@ func main() {
 			switch v := v.(type) {
 			case *osmpbf.Node:
 				// Node（点要素）の場合の処理
-				if val, flg := v.Tags["amenity"]; flg == true && val == "school" {
-					file.WriteString("\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[")
-					file.WriteString("%.5f,%.5f", v.Lon, v.Lat)
-					file.WriteString("}")
-				}
-
-				// 最初のレコード出力時にはカンマを出力しない
-				if fi {
-					fi = false
-				} else {
-					file.WriteString(",\n")
+				if v.Tags["amenity"] == "school" {
+					// 最後のレコード出力時にはカンマを出力しない
+					if endl {
+						file.WriteString(",\n")
+					} else {
+						endl = true
+					}
+					// 要素情報の出力
+					file.WriteString("{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",")
+					file.WriteString(fmt.Sprintf("\"coordinates\":[%.7f,%.7f]}", v.Lon, v.Lat))
+					file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(v.Tags["name"], "\"", "\\\"", -1)))
 				}
 
 				// Process Node v.
