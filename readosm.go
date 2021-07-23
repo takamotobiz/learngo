@@ -67,7 +67,17 @@ func main() {
 					// 要素情報の出力
 					file.WriteString("{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",")
 					file.WriteString(fmt.Sprintf("\"coordinates\":[%.7f,%.7f]}", v.Lon, v.Lat))
-					file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(v.Tags["name"], "\"", "\\\"", -1)))
+					// 属性文字のエスケープ関連文字の訂正
+					if strings.Contains(v.Tags["name"], "\\") {
+						file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(v.Tags["name"], "\\", "", -1)))
+					} else if strings.Contains(v.Tags["name"], "\n") {
+						file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(v.Tags["name"], "\n", "", -1)))
+					} else if strings.Contains(v.Tags["name"], "\"") {
+						file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(v.Tags["name"], "\"", "　", -1)))
+					} else {
+						file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", v.Tags["name"]))
+					}
+
 				}
 
 				// Process Node v.
