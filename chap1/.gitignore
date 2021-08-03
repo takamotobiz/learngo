@@ -16,3 +16,5 @@
 
 # Add K.Takamoto
 *.osm.pbf
+
+.vscode
