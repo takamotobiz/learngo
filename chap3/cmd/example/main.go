@@ -12,7 +12,7 @@ import (
 func main() {
 	parser := osmpbfparser.New(
 		osmpbfparser.Args{
-			PBFFile:     "/Users/takamotokeiji/data/osm.pbf/shikoku-latest.osm.pbf",
+			PBFFile:     "/Users/takamotokeiji/data/osm.pbf/japan-latest.osm.pbf",
 			LevelDBPath: "/tmp/osmpbfparser",
 			BatchSize:   10000,
 		},
@@ -41,7 +41,7 @@ func main() {
 		// fmt.Println(string(rawJSON))
 
 		tags := emt.GetTags()
-		if nv, fl := tags["amenity"]; fl == true {
+		if nv, fl := tags["amenity"]; fl {
 			if nv == "school" {
 
 				if fi {
