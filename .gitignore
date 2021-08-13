@@ -18,3 +18,5 @@
 *.osm.pbf
 output.json
 .vscode
+
+.DS_Store
