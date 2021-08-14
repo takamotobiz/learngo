@@ -17,6 +17,7 @@
 # Add K.Takamoto
 *.osm.pbf
 output.json
+*.mtiles
 .vscode
 
 .DS_Store

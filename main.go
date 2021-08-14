@@ -115,7 +115,9 @@ func main() {
 			}
 			ways++
 		case *osm.Relation:
-			srelations++
+			if e.Tags.Find("amenity") == "school" {
+				srelations++
+			}
 			relations++
 		}
 
