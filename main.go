@@ -17,9 +17,8 @@ func main() {
 
 	start := time.Now()
 
-	f, err := os.Open("./japan-low.osm.pbf")
 	//f, err := os.Open("./shikoku-low.osm.pbf")
-	// f, err := os.Open("../../data/japan-low.osm.pbf")
+	f, err := os.Open("../../data/japan-low.osm.pbf")
 	// f, err := os.Open("../../data/planet-low.osm.pbf")
 	if err != nil {
 		fmt.Printf("could not open file: %v", err)
