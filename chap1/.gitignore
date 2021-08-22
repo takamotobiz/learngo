@@ -15,6 +15,7 @@
 # vendor/
 
 # Add K.Takamoto
+.DS_Store
 *.osm.pbf
 
 .vscode
