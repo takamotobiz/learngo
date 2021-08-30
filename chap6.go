@@ -14,10 +14,9 @@ import (
 
 // define file
 // const pbfname string = "/data/osm.pbf/shikoku-low.osm.pbf"
-
-const pbfname string = "/data/osm.pbf/japan-low.osm.pbf"
-
+// const pbfname string = "/data/osm.pbf/japan-low.osm.pbf"
 // const pbfname string = "/data/osm.pbf/planet-low.osm.pbf"
+const pbfname string = "/data/osm.pbf/hokkaido-low.osm.pbf"
 const outfname string = "./output.json"
 
 // define Tag
@@ -76,38 +75,41 @@ func main() {
 
 	nodes, ways, relations := 0, 0, 0
 	snodes, sways, srelations := 0, 0, 0
-	var endl bool
+	// var endl bool
 
 	// for debug
 	scanner.SkipNodes = true
 
 	for scanner.Scan() {
 
+		f := scanner.Object().ObjectID().Type()
+		fmt.Println("Node!\n", f)
+
 		switch e := scanner.Object().(type) {
 		case *osm.Node:
-			if e.Tags.Find(tagname) == tagval {
-				snodes++
-				// 最後のレコード出力時にはカンマを出力しない
-				if endl {
-					file.WriteString(",\n")
-				} else {
-					endl = true
-				}
-				// 要素情報の出力
-				file.WriteString("{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",")
-				file.WriteString(fmt.Sprintf("\"coordinates\":[%.7f,%.7f]}", e.Lon, e.Lat))
-				// 属性文字のエスケープ関連文字の訂正
-				if strings.Contains(e.Tags.Find("name"), "\\") {
-					file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(e.Tags.Find("name"), "\\", "", -1)))
-				} else if strings.Contains(e.Tags.Find("name"), "\n") {
-					file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(e.Tags.Find("name"), "\n", "", -1)))
-				} else if strings.Contains(e.Tags.Find("name"), "\"") {
-					file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(e.Tags.Find("name"), "\"", "　", -1)))
-				} else {
-					file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", e.Tags.Find("name")))
-				}
-			}
-			nodes++
+			// if e.Tags.Find(tagname) == tagval {
+			// 	snodes++
+			// 	// 最後のレコード出力時にはカンマを出力しない
+			// 	if endl {
+			// 		file.WriteString(",\n")
+			// 	} else {
+			// 		endl = true
+			// 	}
+			// 	// 要素情報の出力
+			// 	file.WriteString("{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",")
+			// 	file.WriteString(fmt.Sprintf("\"coordinates\":[%.7f,%.7f]}", e.Lon, e.Lat))
+			// 	// 属性文字のエスケープ関連文字の訂正
+			// 	if strings.Contains(e.Tags.Find("name"), "\\") {
+			// 		file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(e.Tags.Find("name"), "\\", "", -1)))
+			// 	} else if strings.Contains(e.Tags.Find("name"), "\n") {
+			// 		file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(e.Tags.Find("name"), "\n", "", -1)))
+			// 	} else if strings.Contains(e.Tags.Find("name"), "\"") {
+			// 		file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(e.Tags.Find("name"), "\"", "　", -1)))
+			// 	} else {
+			// 		file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", e.Tags.Find("name")))
+			// 	}
+			// }
+			// nodes++
 		case *osm.Way:
 			// set way coordinates
 			if _, flg := mrway[int(e.ID)]; flg {
