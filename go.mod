@@ -2,7 +2,4 @@ module main
 
 go 1.16
 
-require (
-	github.com/paulmach/osm v0.2.2 // indirect
-	github.com/qedus/osmpbf v1.2.0
-)
+require github.com/paulmach/osm v0.2.2 // indirect
