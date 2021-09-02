@@ -1,0 +1,7 @@
+参考情報
+https://wiki.openstreetmap.org/wiki/JA:リレーションの種類
+https://wiki.openstreetmap.org/wiki/JA:Relation:multipolygon
+
+https://wiki.openstreetmap.org/wiki/Types_of_relation
+
+https://wiki.openstreetmap.org/wiki/Relation:site

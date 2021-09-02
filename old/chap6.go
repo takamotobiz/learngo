@@ -53,11 +53,11 @@ func main() {
 	// for debug
 	mdebug := map[string]int{}
 	for scanner.Scan() {
-		switch e := scanner.Object().(type) {
+		switch re := scanner.Object().(type) {
 		case *osm.Relation:
-			if e.Tags.Find(tagname) == tagval {
-				for _, v := range e.Members {
-					k := e.Tags.Find("type") + "/" + string(v.Type) + "/" + v.Role + "/"
+			if re.Tags.Find(tagname) == tagval {
+				for _, v := range re.Members {
+					k := string(v.Type) + "/" + v.Role + "/"
 					mrway[int(v.Ref)] = k
 					// for debug
 					mdebug[k] += 1
