@@ -69,7 +69,7 @@ func main() {
 	fmt.Println("mdebug[", mdebug, "]")
 
 	// ====================================
-	// 1-2.add coordinate to mrway
+	// 1-2.add coordinate and set open/close to mrway
 	// ====================================
 	f.Seek(0, 0)
 	scanner = osmpbf.New(context.Background(), f, cpu)
@@ -91,6 +91,10 @@ func main() {
 						llon, llat = v.Lon, v.Lat
 					}
 				}
+				// first and last coordinate
+				mrway[int(re.ID)] += fmt.Sprintf("[%.7f,%.7f]", flon, flat)
+				mrway[int(re.ID)] += fmt.Sprintf("[%.7f,%.7f]", llon, llat)
+				//
 				if llon == flon && llat == flat {
 					mrway[int(re.ID)] += "/close"
 				} else {
@@ -130,72 +134,87 @@ func main() {
 	for scanner.Scan() {
 		switch e := scanner.Object().(type) {
 		case *osm.Relation:
+			// target Tag
 			if e.Tags.Find(tagname) == tagval {
+				//
+				// この段階で出力要不要の判定が必要
+				//
+				geojson := ""
+
 				srelations++
 				if bfirst {
 					bfirst = false
 				} else {
-					file.WriteString(",\n")
+					geojson += ",\n"
 				}
 
-				// 要素情報の出力
 				switch e.Tags.Find("type") {
 				case "multipolygon":
 					// continue
-					file.WriteString("{\"type\":\"Feature\",\"geometry\":{\"type\":\"MultiPolygon\",")
-					file.WriteString("\"coordinates\":[")
+					geojson += "{\"type\":\"Feature\",\"geometry\":{\"type\":\"MultiPolygon\","
 					bmp = true
 				case "site":
-					file.WriteString("{\"type\":\"Feature\",\"geometry\":{\"type\":\"MultiLineString\",")
-					file.WriteString("\"coordinates\":[")
+					geojson += "{\"type\":\"Feature\",\"geometry\":{\"type\":\"MultiLineString\","
 					bmp = false
 				}
 
-				// if e.Tags.Find("name") == "県立廿日市高等学校" {
-				// 	fmt.Println("")
-				// }
 				i := 0
 				lopen := false
+				// ******************************
+				// start coordinates
+				// このforをbreakすればGeoJSONはクリアされる
+				// ******************************
+				geojson += "\"coordinates\":["
 				for _, v := range e.Members {
+					// element kind "Way" only processing
 					if v.Type == "way" {
+						// get "Way" information from mrway( dictionary )
 						if way, flg := mrway[int(v.Ref)]; flg {
-							// Get way elements
+							// split way information
 							wayelm := strings.Split(way, "/")
+							// mrway delimter "/".
+							// wayelm array format.
+							//  [0]: relation type("multipolygon" ,"site")
+							//  [1]: element type( "way" ,"node" )
+							//  [2]: role( "outer","inner","entrance","perimeter","label","" )
+							//  [3]: coordinates
+							//  [4]: first coordinate
+							//  [5]: last coordinate
+							//  [6]: open/close area( "open"/"close" )
 							if i == 0 {
-								if wayelm[3] == "open" {
+								if wayelm[6] == "open" {
 									file.WriteString("[[")
 								} else {
 									file.WriteString("[")
 								}
 								i++
 							} else {
-								if wayelm[3] == "close" && wayelm[1] == "outer" {
+								if wayelm[6] == "close" && wayelm[2] == "outer" {
 									file.WriteString("],[")
 								} else {
 									file.WriteString(",")
 								}
 							}
 							// file.WriteString(way)
-							if wayelm[3] == "close" {
-								file.WriteString("[" + wayelm[2] + "]")
+							if wayelm[6] == "close" {
+								file.WriteString("[" + wayelm[3] + "]")
 							} else {
 								if lopen {
-									file.WriteString(wayelm[2])
+									file.WriteString(wayelm[3])
 								} else if i == 0 {
-									file.WriteString(wayelm[2])
+									file.WriteString(wayelm[3])
 								} else {
-									file.WriteString("[" + wayelm[2])
+									file.WriteString("[" + wayelm[3])
 									lopen = true
 								}
 							}
 						}
 					}
 				}
-				if lopen && bmp {
-					file.WriteString("]]]}")
-				} else {
-					file.WriteString("]]}")
-				}
+				// ******************************
+				// close coordinates
+				// ******************************
+				file.WriteString("}")
 
 				// 属性文字のエスケープ関連文字の訂正
 				if strings.Contains(e.Tags.Find("name"), "\\") {
