@@ -69,7 +69,7 @@ func main() {
 		case *osm.Relation:
 			if e.Tags.Find(tagname) == tagval {
 				for _, v := range e.Members {
-					k := e.Tags.Find("type") + "/" + string(v.Type) + "/" + v.Role + "/" + v.FeatureID().String() + "/" + strconv.FormatInt(v.Ref, 10) + "/"
+					k := e.Tags.Find("type") + "/" + string(v.Type) + "/" + v.Role + "/" + strconv.FormatInt(v.Ref, 10) + "/"
 					mrway[int(v.Ref)] = k
 					// for debug
 					mdebug[k] += 1
@@ -96,7 +96,7 @@ func main() {
 				var flon, flat, llon, llat float64
 				for i, v := range re.Nodes {
 					if i == 0 {
-						mrway[int(re.ID)] += fmt.Sprintf("[%.7f,%.7f]", v.Lon, v.Lat)
+						mrway[int(re.ID)] += fmt.Sprintf("%d/[%.7f,%.7f]", v.ID, v.Lon, v.Lat)
 						flon, flat = v.Lon, v.Lat
 					} else {
 						mrway[int(re.ID)] += fmt.Sprintf(",[%.7f,%.7f]", v.Lon, v.Lat)
