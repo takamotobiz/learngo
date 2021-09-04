@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ const pbfname string = "/data/osm.pbf/japan-low.osm.pbf"
 // const pbfname string = "/data/osm.pbf/planet-low.osm.pbf"
 // const pbfname string = "/data/osm.pbf/hokkaido-low.osm.pbf"
 const outfname string = "./output.json"
+const debugfname string = "./debug.json"
 
 // define Tag
 const tagname string = "amenity"
@@ -28,6 +30,16 @@ func main() {
 
 	// get start time
 	start := time.Now()
+
+	// ************************************
+	// 0.create debug file
+	// ************************************
+	dfile, err := os.Create(debugfname)
+	if err != nil {
+		fmt.Printf("could not create debug file: %v", err)
+		os.Exit(1)
+	}
+	defer dfile.Close()
 
 	// ====================================
 	// 1-1.open osm.pbf file and create scanner
@@ -57,7 +69,7 @@ func main() {
 		case *osm.Relation:
 			if e.Tags.Find(tagname) == tagval {
 				for _, v := range e.Members {
-					k := e.Tags.Find("type") + "/" + string(v.Type) + "/" + v.Role + "/"
+					k := e.Tags.Find("type") + "/" + string(v.Type) + "/" + v.Role + "/" + v.FeatureID().String() + "/" + strconv.FormatInt(v.Ref, 10) + "/"
 					mrway[int(v.Ref)] = k
 					// for debug
 					mdebug[k] += 1
@@ -157,8 +169,10 @@ func main() {
 				}
 				geojson += "\"coordinates\":["
 
-				if e.Tags.Find("name") == "市立中央台北小学校" {
+				var dflag bool
+				if e.Tags.Find("name") == "廿日市市立宮内小学校" {
 					fmt.Println("")
+					dflag = true
 				}
 
 				var cntcoord int
@@ -175,6 +189,9 @@ func main() {
 						outfile = true
 						// get "Way" information from mrway( dictionary )
 						if way, flg := mrway[int(v.Ref)]; flg {
+							if dflag {
+								dfile.WriteString(way + "\n")
+							}
 							// split way information
 							wayelm := strings.Split(way, "/")
 							// mrway delimter "/".
@@ -182,10 +199,12 @@ func main() {
 							//  [0]: relation type("multipolygon" ,"site")
 							//  [1]: element type( "way" ,"node" )
 							//  [2]: role( "outer","inner","entrance","perimeter","label","" )
-							//  [3]: coordinates
-							//  [4]: first coordinate
-							//  [5]: last coordinate
-							//  [6]: open/close area( "open"/"close" )
+							//  [3]:
+							//  [4]:
+							//  [5]: coordinates
+							//  [6]: first coordinate
+							//  [7]: last coordinate
+							//  [8]: open/close area( "open"/"close" )
 
 							if cntcoord > 0 {
 								geojson += ","
@@ -195,24 +214,24 @@ func main() {
 								// MultiPolygon
 								if wayelm[6] == "close" {
 									// closed element
-									geojson += "[[" + wayelm[3] + "]]"
+									geojson += "[[" + wayelm[5] + "]]"
 									cntcoord++
 								} else {
 									// open element
 									if cntcoord == 0 {
 										geojson += "[["
-										firstcoord = wayelm[4]
+										firstcoord = wayelm[6]
 										cntcoord++
 									}
-									geojson += wayelm[3]
-									if firstcoord == wayelm[5] {
+									geojson += wayelm[5]
+									if firstcoord == wayelm[7] {
 										geojson += "]]"
 										cntcoord = 0
 									}
 								}
 							} else {
 								// site(MultiLineString)
-								geojson += "[" + wayelm[3] + "]"
+								geojson += "[" + wayelm[5] + "]"
 								cntcoord++
 							}
 						}
@@ -242,6 +261,9 @@ func main() {
 				}
 
 				// For debug
+				if dflag {
+					dflag = false
+				}
 				fmt.Println("Relation Type:", e.Tags.Find("type"))
 			}
 			relations++
