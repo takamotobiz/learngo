@@ -92,8 +92,8 @@ func main() {
 					}
 				}
 				// first and last coordinate
-				mrway[int(re.ID)] += fmt.Sprintf("[%.7f,%.7f]", flon, flat)
-				mrway[int(re.ID)] += fmt.Sprintf("[%.7f,%.7f]", llon, llat)
+				mrway[int(re.ID)] += fmt.Sprintf("/[%.7f,%.7f]", flon, flat)
+				mrway[int(re.ID)] += fmt.Sprintf("/[%.7f,%.7f]", llon, llat)
 				//
 				if llon == flon && llat == flat {
 					mrway[int(re.ID)] += "/close"
@@ -130,7 +130,7 @@ func main() {
 	// write "FeatureCollection" record
 	file.WriteString("{\"type\":\"FeatureCollection\",\"features\":[\n")
 
-	bfirst, bmp := true, true
+	var bnext bool
 	for scanner.Scan() {
 		switch e := scanner.Object().(type) {
 		case *osm.Relation:
@@ -139,35 +139,40 @@ func main() {
 				//
 				// この段階で出力要不要の判定が必要
 				//
-				geojson := ""
+				var geojson string
 
 				srelations++
-				if bfirst {
-					bfirst = false
-				} else {
+				if bnext {
 					geojson += ",\n"
+				} else {
+					bnext = true
 				}
-
-				switch e.Tags.Find("type") {
-				case "multipolygon":
-					// continue
+				// ここはTypeで分岐
+				if e.Tags.Find("type") == "multipolygon" {
+					// MultiPolygon
 					geojson += "{\"type\":\"Feature\",\"geometry\":{\"type\":\"MultiPolygon\","
-					bmp = true
-				case "site":
+				} else {
+					// site(MultiLineString)
 					geojson += "{\"type\":\"Feature\",\"geometry\":{\"type\":\"MultiLineString\","
-					bmp = false
+				}
+				geojson += "\"coordinates\":["
+
+				if e.Tags.Find("name") == "市立中央台北小学校" {
+					fmt.Println("")
 				}
 
-				i := 0
-				lopen := false
+				var cntcoord int
+				var firstcoord string
+				var outfile bool
 				// ******************************
 				// start coordinates
 				// このforをbreakすればGeoJSONはクリアされる
 				// ******************************
-				geojson += "\"coordinates\":["
 				for _, v := range e.Members {
 					// element kind "Way" only processing
 					if v.Type == "way" {
+						// set output flag
+						outfile = true
 						// get "Way" information from mrway( dictionary )
 						if way, flg := mrway[int(v.Ref)]; flg {
 							// split way information
@@ -181,50 +186,59 @@ func main() {
 							//  [4]: first coordinate
 							//  [5]: last coordinate
 							//  [6]: open/close area( "open"/"close" )
-							if i == 0 {
-								if wayelm[6] == "open" {
-									file.WriteString("[[")
-								} else {
-									file.WriteString("[")
-								}
-								i++
-							} else {
-								if wayelm[6] == "close" && wayelm[2] == "outer" {
-									file.WriteString("],[")
-								} else {
-									file.WriteString(",")
-								}
+
+							if cntcoord > 0 {
+								geojson += ","
 							}
-							// file.WriteString(way)
-							if wayelm[6] == "close" {
-								file.WriteString("[" + wayelm[3] + "]")
-							} else {
-								if lopen {
-									file.WriteString(wayelm[3])
-								} else if i == 0 {
-									file.WriteString(wayelm[3])
+							// ここはTypeで分岐
+							if wayelm[0] == "multipolygon" {
+								// MultiPolygon
+								if wayelm[6] == "close" {
+									// closed element
+									geojson += "[[" + wayelm[3] + "]]"
+									cntcoord++
 								} else {
-									file.WriteString("[" + wayelm[3])
-									lopen = true
+									// open element
+									if cntcoord == 0 {
+										geojson += "[["
+										firstcoord = wayelm[4]
+										cntcoord++
+									}
+									geojson += wayelm[3]
+									if firstcoord == wayelm[5] {
+										geojson += "]]"
+										cntcoord = 0
+									}
 								}
+							} else {
+								// site(MultiLineString)
+								geojson += "[" + wayelm[3] + "]"
+								cntcoord++
 							}
 						}
+					} else {
+						break
 					}
 				}
 				// ******************************
 				// close coordinates
 				// ******************************
-				file.WriteString("}")
+				geojson += "]}"
 
 				// 属性文字のエスケープ関連文字の訂正
 				if strings.Contains(e.Tags.Find("name"), "\\") {
-					file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(e.Tags.Find("name"), "\\", "", -1)))
+					geojson += fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(e.Tags.Find("name"), "\\", "", -1))
 				} else if strings.Contains(e.Tags.Find("name"), "\n") {
-					file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(e.Tags.Find("name"), "\n", "", -1)))
+					geojson += fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(e.Tags.Find("name"), "\n", "", -1))
 				} else if strings.Contains(e.Tags.Find("name"), "\"") {
-					file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(e.Tags.Find("name"), "\"", "　", -1)))
+					geojson += fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(e.Tags.Find("name"), "\"", "　", -1))
 				} else {
-					file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", e.Tags.Find("name")))
+					geojson += fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", e.Tags.Find("name"))
+				}
+
+				// write file
+				if outfile {
+					file.WriteString(geojson)
 				}
 
 				// For debug
