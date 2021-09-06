@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
@@ -69,7 +68,7 @@ func main() {
 		case *osm.Relation:
 			if e.Tags.Find(tagname) == tagval {
 				for _, v := range e.Members {
-					k := e.Tags.Find("type") + "/" + string(v.Type) + "/" + v.Role + "/" + strconv.FormatInt(v.Ref, 10) + "/"
+					k := e.Tags.Find("type") + "/" + string(v.Type) + "/" + v.Role + "/"
 					mrway[int(v.Ref)] = k
 					// for debug
 					mdebug[k] += 1
@@ -78,7 +77,7 @@ func main() {
 		}
 	}
 	scanner.Close()
-	fmt.Println("mdebug[", mdebug, "]")
+	// fmt.Println("mdebug[", mdebug, "]")
 
 	// ====================================
 	// 1-2.add coordinate and set open/close to mrway
@@ -96,7 +95,7 @@ func main() {
 				var flon, flat, llon, llat float64
 				for i, v := range re.Nodes {
 					if i == 0 {
-						mrway[int(re.ID)] += fmt.Sprintf("%d/[%.7f,%.7f]", v.ID, v.Lon, v.Lat)
+						mrway[int(re.ID)] += fmt.Sprintf("[%.7f,%.7f]", v.Lon, v.Lat)
 						flon, flat = v.Lon, v.Lat
 					} else {
 						mrway[int(re.ID)] += fmt.Sprintf(",[%.7f,%.7f]", v.Lon, v.Lat)
@@ -199,12 +198,10 @@ func main() {
 							//  [0]: relation type("multipolygon" ,"site")
 							//  [1]: element type( "way" ,"node" )
 							//  [2]: role( "outer","inner","entrance","perimeter","label","" )
-							//  [3]:
-							//  [4]:
-							//  [5]: coordinates
-							//  [6]: first coordinate
-							//  [7]: last coordinate
-							//  [8]: open/close area( "open"/"close" )
+							//  [3]: coordinates
+							//  [4]: first coordinate
+							//  [5]: last coordinate
+							//  [6]: open/close area( "open"/"close" )
 
 							if cntcoord > 0 {
 								geojson += ","
@@ -214,24 +211,34 @@ func main() {
 								// MultiPolygon
 								if wayelm[6] == "close" {
 									// closed element
-									geojson += "[[" + wayelm[5] + "]]"
+									geojson += "[[" + wayelm[3] + "]]"
 									cntcoord++
 								} else {
 									// open element
+									// ******************************************
+									// ここに、以下の処理を実装する。
+									// ・最初のopenを見つけたらフラグon
+									// ・同時にバッファ辞書へ追加、keyが先頭座標、valが座標本体
+									// ・最後のopenを見つけたらフラグoff（どうやって判定するか？）
+									// ・最初のメンバの最終座標でkeyを引き当て座標点列を構成
+									// ・引き当て終了したらバッファ辞書のメンバを削除
+									// ・バッファがなくなったら処理終了
+									// ・メンバが残っていてkey引き当て失敗したらそいの要素は破棄
+									// ******************************************
 									if cntcoord == 0 {
 										geojson += "[["
-										firstcoord = wayelm[6]
+										firstcoord = wayelm[4]
 										cntcoord++
 									}
-									geojson += wayelm[5]
-									if firstcoord == wayelm[7] {
+									geojson += wayelm[3]
+									if firstcoord == wayelm[5] {
 										geojson += "]]"
 										cntcoord = 0
 									}
 								}
 							} else {
 								// site(MultiLineString)
-								geojson += "[" + wayelm[5] + "]"
+								geojson += "[" + wayelm[3] + "]"
 								cntcoord++
 							}
 						}
