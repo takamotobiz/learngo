@@ -176,7 +176,7 @@ func main() {
 
 				var cntcoord int
 				//var firstcoord string
-				var outfile bool
+				var boutfile, bouter, bsite bool
 				// ******************************
 				// start coordinates
 				// このforをbreakすればGeoJSONはクリアされる
@@ -185,7 +185,7 @@ func main() {
 					// element kind "Way" only processing
 					if v.Type == "way" {
 						// set output flag
-						outfile = true
+						boutfile = true
 						// get "Way" information from mrway( dictionary )
 						if way, flg := mrway[int(v.Ref)]; flg {
 							if dflag {
@@ -207,9 +207,9 @@ func main() {
 							// 	dfile.WriteString(way + "\n")
 							// }
 
-							if cntcoord > 0 {
-								geojson += ","
-							}
+							// if cntcoord > 0 {
+							// 	geojson += ","
+							// }
 							// ここはTypeで分岐
 							if wayelm[0] == "multipolygon" {
 								// MultiPolygon
@@ -220,9 +220,23 @@ func main() {
 									// ******************************************
 									// closed element
 									if wayelm[2] == "outer" {
-										geojson += "[[" + wayelm[3] + "]]"
+										if bouter {
+											geojson += "]"
+										}
+										if cntcoord > 0 {
+											geojson += ","
+										}
+										geojson += "[[" + wayelm[3] + "]"
+										bouter = true
 									} else {
+										// if bouter {
+										// 	geojson += "]"
+										// }
+										if cntcoord > 0 {
+											geojson += ","
+										}
 										geojson += "[" + wayelm[3] + "]"
+										bouter = false
 									}
 									cntcoord++
 								} else {
@@ -247,13 +261,17 @@ func main() {
 									// 	geojson += "]]"
 									// 	cntcoord = 0
 									// }
-									outfile = false
+									boutfile = false
 									break
 								}
 							} else {
 								// site(MultiLineString)
+								if cntcoord > 0 {
+									geojson += ","
+								}
 								geojson += "[" + wayelm[3] + "]"
 								cntcoord++
+								bsite = true
 							}
 						}
 					} else {
@@ -263,6 +281,9 @@ func main() {
 				// ******************************
 				// close coordinates
 				// ******************************
+				if !bsite {
+					geojson += "]"
+				}
 				geojson += "]}"
 
 				// 属性文字のエスケープ関連文字の訂正
@@ -277,7 +298,7 @@ func main() {
 				}
 
 				// write file
-				if outfile {
+				if boutfile {
 					file.WriteString(geojson)
 				}
 
