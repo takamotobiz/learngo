@@ -175,7 +175,7 @@ func main() {
 				}
 
 				var cntcoord int
-				var firstcoord string
+				//var firstcoord string
 				var outfile bool
 				// ******************************
 				// start coordinates
@@ -203,6 +203,10 @@ func main() {
 							//  [5]: last coordinate
 							//  [6]: open/close area( "open"/"close" )
 
+							// if wayelm[2] == "inner" && wayelm[6] == "open" {
+							// 	dfile.WriteString(way + "\n")
+							// }
+
 							if cntcoord > 0 {
 								geojson += ","
 							}
@@ -210,14 +214,22 @@ func main() {
 							if wayelm[0] == "multipolygon" {
 								// MultiPolygon
 								if wayelm[6] == "close" {
+									// ******************************************
+									// outer/innerの判定処理が必要
+									// ※続く面がという判定が必要
+									// ******************************************
 									// closed element
-									geojson += "[[" + wayelm[3] + "]]"
+									if wayelm[2] == "outer" {
+										geojson += "[[" + wayelm[3] + "]]"
+									} else {
+										geojson += "[" + wayelm[3] + "]"
+									}
 									cntcoord++
 								} else {
 									// open element
 									// ******************************************
 									// ここに、以下の処理を実装する。
-									// ・最初のopenを見つけたらフラグon
+									// ・最初のopenを見つけたらフラグon（bopen）
 									// ・同時にバッファ辞書へ追加、keyが先頭座標、valが座標本体
 									// ・最後のopenを見つけたらフラグoff（どうやって判定するか？）
 									// ・最初のメンバの最終座標でkeyを引き当て座標点列を構成
@@ -225,16 +237,18 @@ func main() {
 									// ・バッファがなくなったら処理終了
 									// ・メンバが残っていてkey引き当て失敗したらそいの要素は破棄
 									// ******************************************
-									if cntcoord == 0 {
-										geojson += "[["
-										firstcoord = wayelm[4]
-										cntcoord++
-									}
-									geojson += wayelm[3]
-									if firstcoord == wayelm[5] {
-										geojson += "]]"
-										cntcoord = 0
-									}
+									// if cntcoord == 0 {
+									// 	geojson += "[["
+									// 	firstcoord = wayelm[4]
+									// 	cntcoord++
+									// }
+									// geojson += wayelm[3]
+									// if firstcoord == wayelm[5] {
+									// 	geojson += "]]"
+									// 	cntcoord = 0
+									// }
+									outfile = false
+									break
 								}
 							} else {
 								// site(MultiLineString)
