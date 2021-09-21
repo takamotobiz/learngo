@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,19 +21,24 @@ const pbfname string = "/data/osm.pbf/japan-low.osm.pbf"
 // const pbfname string = "/data/osm.pbf/hokkaido-low.osm.pbf"
 const outfname string = "./output.json"
 const debugfname string = "./debug.json"
+const debugfname1 string = "./debug1.json"
 
 // define Tag
 const tagname string = "amenity"
 const tagval string = "school"
 
+// ====================================
+// マルチポリゴンのみ出力するバージョン
+// 2021.9.21 K.Takamoto
+// ====================================
 func main() {
 
 	// get start time
 	start := time.Now()
 
-	// ************************************
+	// ====================================
 	// 0.create debug file
-	// ************************************
+	// ====================================
 	dfile, err := os.Create(debugfname)
 	if err != nil {
 		fmt.Printf("could not create debug file: %v", err)
@@ -40,8 +46,15 @@ func main() {
 	}
 	defer dfile.Close()
 
+	dfile1, err := os.Create(debugfname1)
+	if err != nil {
+		fmt.Printf("could not create debug file1: %v", err)
+		os.Exit(1)
+	}
+	defer dfile1.Close()
+
 	// ====================================
-	// 1-1.open osm.pbf file and create scanner
+	// 1.open osm.pbf file and create scanner
 	// ====================================
 	home, _ := os.UserHomeDir()
 	f, err := os.Open(home + pbfname)
@@ -56,7 +69,8 @@ func main() {
 	scanner := osmpbf.New(context.Background(), f, cpu)
 
 	// ====================================
-	// 1-1.create Node list include Relations(mrway)
+	// 2.create Node list include Relations(mrway)
+	// デバッグ用にリレーションのみ抽出
 	// ====================================
 	scanner.SkipNodes = true
 	scanner.SkipWays = true
@@ -80,7 +94,7 @@ func main() {
 	// fmt.Println("mdebug[", mdebug, "]")
 
 	// ====================================
-	// 1-2.add coordinate and set open/close to mrway
+	// 3.add coordinate and set open/close to mrway
 	// ====================================
 	f.Seek(0, 0)
 	scanner = osmpbf.New(context.Background(), f, cpu)
@@ -117,7 +131,7 @@ func main() {
 	scanner.Close()
 
 	// ====================================
-	// 2.create GeoJSON file
+	// 4.create GeoJSON file
 	// ====================================
 	file, err := os.Create(outfname)
 	if err != nil {
@@ -131,7 +145,7 @@ func main() {
 	snodes, sways, srelations := 0, 0, 0
 
 	// ====================================
-	// 3.recreate scanner and write GeoJSON
+	// 5.recreate scanner and write GeoJSON
 	// ====================================
 	f.Seek(0, 0)
 	scanner = osmpbf.New(context.Background(), f, cpu)
@@ -169,10 +183,16 @@ func main() {
 				geojson += "\"coordinates\":["
 
 				var dflag bool
-				if e.Tags.Find("name") == "廿日市市立宮内小学校" {
-					fmt.Println("")
-					dflag = true
-				}
+				fmt.Println("")
+				dflag = true
+				dfile.WriteString("Element:" + strconv.Itoa(int(e.ID)) + "/" + e.Tags.Find("name") + "\n")
+				dfile1.WriteString("Element:" + strconv.Itoa(int(e.ID)) + "/" + e.Tags.Find("name") + "\n")
+
+				e.Tags.Find("name")
+				// if e.Tags.Find("name") == "廿日市市立宮内小学校" {
+				// 	fmt.Println("")
+				// 	dflag = true
+				// }
 
 				var cntcoord int
 				//var firstcoord string
@@ -212,6 +232,8 @@ func main() {
 							// }
 							// ここはTypeで分岐
 							if wayelm[0] == "multipolygon" {
+
+								dfile1.WriteString(wayelm[2] + "/" + wayelm[6] + "/S:" + wayelm[4] + "/E:" + wayelm[5] + "\n")
 								// MultiPolygon
 								if wayelm[6] == "close" {
 									// ******************************************
@@ -240,28 +262,12 @@ func main() {
 									}
 									cntcoord++
 								} else {
+									// *******************************
 									// open element
-									// ******************************************
-									// ここに、以下の処理を実装する。
-									// ・最初のopenを見つけたらフラグon（bopen）
-									// ・同時にバッファ辞書へ追加、keyが先頭座標、valが座標本体
-									// ・最後のopenを見つけたらフラグoff（どうやって判定するか？）
-									// ・最初のメンバの最終座標でkeyを引き当て座標点列を構成
-									// ・引き当て終了したらバッファ辞書のメンバを削除
-									// ・バッファがなくなったら処理終了
-									// ・メンバが残っていてkey引き当て失敗したらそいの要素は破棄
-									// ******************************************
-									// if cntcoord == 0 {
-									// 	geojson += "[["
-									// 	firstcoord = wayelm[4]
-									// 	cntcoord++
-									// }
-									// geojson += wayelm[3]
-									// if firstcoord == wayelm[5] {
-									// 	geojson += "]]"
-									// 	cntcoord = 0
-									// }
+									// *******************************
+									// Write file
 									boutfile = false
+									// For Debug
 									break
 								}
 							} else {
