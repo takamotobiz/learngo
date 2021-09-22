@@ -204,9 +204,11 @@ func main() {
 				// 以下の設定例
 				// Element:1482014/市立中央台北小学校
 				// multipolygon/way/outer/[140.9097185,37.0167556],[140.9101336,37.0160501],[140.9105440,37.0153525]/[140.9097185,37.0167556]/[140.9105440,37.0153525]/open
-				sopenel := []string					// [0]                     :[140.9097185,37.0167556],[140.9101336,37.0160501],[140.9105440,37.0153525]
-				mopenels := map[string]string{}		// [140.9097185,37.0167556]:0/[140.9105440,37.0153525]
-				mopenele := map[string]string{}		// [140.9105440,37.0153525]:0/[140.9097185,37.0167556]
+				sopenel := []string{}           // [0]                     :[140.9097185,37.0167556],[140.9101336,37.0160501],[140.9105440,37.0153525]
+				mopenels := map[string]string{} // [140.9097185,37.0167556]:0/[140.9105440,37.0153525]
+				mopenele := map[string]string{} // [140.9105440,37.0153525]:0/[140.9097185,37.0167556]
+
+				var i int
 				for _, v := range e.Members {
 					// element kind "Way" only processing
 					if v.Type == "way" {
@@ -225,8 +227,8 @@ func main() {
 							//  [1]: element type( "way" ,"node" )
 							//  [2]: role( "outer","inner","entrance","perimeter","label","" )
 							//  [3]: coordinates
-							//  [4]: first coordinate
-							//  [5]: last coordinate
+							//  [4]: start coordinate
+							//  [5]: end coordinate
 							//  [6]: open/close area( "open"/"close" )
 
 							// if wayelm[2] == "inner" && wayelm[6] == "open" {
@@ -272,9 +274,12 @@ func main() {
 									// open element
 									// *******************************
 									// Write file
+									sopenel = append(sopenel, wayelm[3])
+									mopenels[wayelm[4]] = strconv.Itoa(i) + "/" + wayelm[4]
+									mopenele[wayelm[5]] = strconv.Itoa(i) + "/" + wayelm[4]
 									boutfile = false
 									// For Debug
-									break
+									// break
 								}
 							} else {
 								// site(MultiLineString)
@@ -289,6 +294,7 @@ func main() {
 					} else {
 						break
 					}
+					i++
 				}
 				// ******************************
 				// close coordinates
