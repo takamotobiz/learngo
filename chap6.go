@@ -196,7 +196,7 @@ func main() {
 
 				var cntcoord int
 				//var firstcoord string
-				var boutfile, bouter, bsite bool
+				var boutfile, bouter, bsite, bopen bool
 				// ******************************
 				// start coordinates
 				// このforをbreakすればGeoJSONはクリアされる
@@ -204,11 +204,10 @@ func main() {
 				// 以下の設定例
 				// Element:1482014/市立中央台北小学校
 				// multipolygon/way/outer/[140.9097185,37.0167556],[140.9101336,37.0160501],[140.9105440,37.0153525]/[140.9097185,37.0167556]/[140.9105440,37.0153525]/open
-				sopenel := []string{}           // [0]                     :[140.9097185,37.0167556],[140.9101336,37.0160501],[140.9105440,37.0153525]
-				mopenels := map[string]string{} // [140.9097185,37.0167556]:0/[140.9105440,37.0153525]
-				mopenele := map[string]string{} // [140.9105440,37.0153525]:0/[140.9097185,37.0167556]
+				// sopenel := []string{}           // [0]                     :[140.9097185,37.0167556],[140.9101336,37.0160501],[140.9105440,37.0153525]
+				openelchain := map[string]string{} // [140.9097185,37.0167556]:0/[140.9105440,37.0153525]
+				openel := map[string]string{}      // [140.9105440,37.0153525]:0/[140.9097185,37.0167556]
 
-				var i int
 				for _, v := range e.Members {
 					// element kind "Way" only processing
 					if v.Type == "way" {
@@ -269,15 +268,39 @@ func main() {
 										bouter = false
 									}
 									cntcoord++
+
+									// For debug
+									boutfile = false
+
 								} else {
 									// *******************************
 									// open element
 									// *******************************
-									// Write file
-									sopenel = append(sopenel, wayelm[3])
-									mopenels[wayelm[4]] = strconv.Itoa(i) + "/" + wayelm[4]
-									mopenele[wayelm[5]] = strconv.Itoa(i) + "/" + wayelm[4]
-									boutfile = false
+									if _, exi := openelchain[wayelm[4]]; exi {
+										// add element to chain( key:first coordinate , value:last coordinate)
+										openelchain[wayelm[5]] = wayelm[4]
+										// add element( key:first coordinate , value:coordinates)
+										var revcoo string
+										coo := strings.Split(wayelm[3], ",[")
+										for j := len(coo); j > 0; j-- {
+											if coo[j-1][0] != '[' {
+												revcoo = revcoo + "["
+											}
+											revcoo = revcoo + coo[j-1]
+											if j > 1 {
+												revcoo = revcoo + ","
+											}
+										}
+										openel[wayelm[5]] = revcoo
+									} else {
+										// add element to chain( key:first coordinate , value:last coordinate)
+										openelchain[wayelm[4]] = wayelm[5]
+										// add element( key:first coordinate , value:coordinates)
+										openel[wayelm[4]] = wayelm[3]
+									}
+									bopen = true
+									// For debug
+									boutfile = true
 									// For Debug
 									// break
 								}
@@ -294,8 +317,26 @@ func main() {
 					} else {
 						break
 					}
-					i++
 				}
+				if bopen {
+					// seek 'openelchain'
+					var coordinate string
+					for key, val := range openelchain {
+						// set first coordinates
+						coordinate = openel[key]
+						delete(openelchain, key)
+						delete(openel, key)
+						// set length
+						chainlen := len(openelchain)
+						for j := 0; j < chainlen; j++ {
+							coordinate = coordinate + "," + openel[val]
+							val = openelchain[val]
+						}
+						break
+					}
+					geojson += "[" + coordinate + "]"
+				}
+
 				// ******************************
 				// close coordinates
 				// ******************************
