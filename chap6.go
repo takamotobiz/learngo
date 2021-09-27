@@ -284,11 +284,11 @@ func main() {
 										coo := strings.Split(wayelm[3], ",[")
 										for j := len(coo); j > 0; j-- {
 											if coo[j-1][0] != '[' {
-												revcoo = revcoo + "["
+												revcoo += "["
 											}
-											revcoo = revcoo + coo[j-1]
+											revcoo += coo[j-1]
 											if j > 1 {
-												revcoo = revcoo + ","
+												revcoo += ","
 											}
 										}
 										openel[wayelm[5]] = revcoo
@@ -318,6 +318,7 @@ func main() {
 						break
 					}
 				}
+				// open element
 				if bopen {
 					// seek 'openelchain'
 					var coordinate string
@@ -329,14 +330,14 @@ func main() {
 						// set length
 						chainlen := len(openelchain)
 						for j := 0; j < chainlen; j++ {
-							coordinate = coordinate + "," + openel[val]
+							coordinate += "," + openel[val]
 							val = openelchain[val]
 						}
 						break
 					}
+					geojson += "["
 					geojson += "[" + coordinate + "]"
 				}
-
 				// ******************************
 				// close coordinates
 				// ******************************
