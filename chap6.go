@@ -70,7 +70,6 @@ func main() {
 
 	// ====================================
 	// 2.create Node list include Relations(mrway)
-	// デバッグ用にリレーションのみ抽出
 	// ====================================
 	scanner.SkipNodes = true
 	scanner.SkipWays = true
@@ -91,7 +90,6 @@ func main() {
 		}
 	}
 	scanner.Close()
-	// fmt.Println("mdebug[", mdebug, "]")
 
 	// ====================================
 	// 3.add coordinate and set open/close to mrway
@@ -143,35 +141,113 @@ func main() {
 	// for debug
 	nodes, ways, relations := 0, 0, 0
 	snodes, sways, srelations := 0, 0, 0
+	var endl bool
 
 	// ====================================
 	// 5.Recreate scanner and write GeoJSON
 	// ====================================
 	f.Seek(0, 0)
 	scanner = osmpbf.New(context.Background(), f, cpu)
-	scanner.SkipNodes = true
-	scanner.SkipWays = true
+
+	// For debug
+	// scanner.SkipNodes = true
+	// scanner.SkipWays = true
+	// scanner.SkipRelations = true
 
 	// write "FeatureCollection" record
 	file.WriteString("{\"type\":\"FeatureCollection\",\"features\":[\n")
 
-	var bnext bool
 	for scanner.Scan() {
 		switch e := scanner.Object().(type) {
+		case *osm.Node:
+			if e.Tags.Find(tagname) == tagval {
+				snodes++
+				// 最後のレコード出力時にはカンマを出力しない
+				if endl {
+					file.WriteString(",\n")
+				} else {
+					endl = true
+				}
+				// 要素情報の出力
+				file.WriteString("{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",")
+				file.WriteString(fmt.Sprintf("\"coordinates\":[%.7f,%.7f]}", e.Lon, e.Lat))
+				// 属性文字のエスケープ関連文字の訂正
+				if strings.Contains(e.Tags.Find("name"), "\\") {
+					file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(e.Tags.Find("name"), "\\", "", -1)))
+				} else if strings.Contains(e.Tags.Find("name"), "\n") {
+					file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(e.Tags.Find("name"), "\n", "", -1)))
+				} else if strings.Contains(e.Tags.Find("name"), "\"") {
+					file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(e.Tags.Find("name"), "\"", "　", -1)))
+				} else {
+					file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", e.Tags.Find("name")))
+				}
+			}
+			nodes++
+		case *osm.Way:
+			// set way coordinates
+			if _, flg := mrway[int(e.ID)]; flg {
+				//fmt.Println("Way:", int(e.ID))
+				var flon, flat, llon, llat float64
+				for i, v := range e.Nodes {
+					if i == 0 {
+						mrway[int(e.ID)] += fmt.Sprintf("[%.7f,%.7f]", v.Lon, v.Lat)
+						flon, flat = v.Lon, v.Lat
+					} else {
+						mrway[int(e.ID)] += fmt.Sprintf(",[%.7f,%.7f]", v.Lon, v.Lat)
+						llon, llat = v.Lon, v.Lat
+					}
+				}
+				if llon == flon && llat == flat {
+					mrway[int(e.ID)] += "/close"
+				} else {
+					mrway[int(e.ID)] += "/open"
+				}
+			}
+			if e.Tags.Find(tagname) == tagval {
+				sways++
+				file.WriteString(",\n")
+
+				// 要素情報の出力
+				if e.Polygon() {
+					file.WriteString("{\"type\":\"Feature\",\"geometry\":{\"type\":\"Polygon\",")
+					file.WriteString("\"coordinates\":[[")
+				} else {
+					file.WriteString("{\"type\":\"Feature\",\"geometry\":{\"type\":\"LineString\",")
+					file.WriteString("\"coordinates\":[")
+				}
+
+				for i, v := range e.Nodes {
+					if i > 0 {
+						file.WriteString(",")
+					}
+					file.WriteString(fmt.Sprintf("[%.7f,%.7f]", v.Lon, v.Lat))
+				}
+				if e.Polygon() {
+					file.WriteString("]]}")
+				} else {
+					file.WriteString("]}")
+				}
+
+				// 属性文字のエスケープ関連文字の訂正
+				if strings.Contains(e.Tags.Find("name"), "\\") {
+					file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(e.Tags.Find("name"), "\\", "", -1)))
+				} else if strings.Contains(e.Tags.Find("name"), "\n") {
+					file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(e.Tags.Find("name"), "\n", "", -1)))
+				} else if strings.Contains(e.Tags.Find("name"), "\"") {
+					file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", strings.Replace(e.Tags.Find("name"), "\"", "　", -1)))
+				} else {
+					file.WriteString(fmt.Sprintf(",\"properties\":{\"name\":\"%s\"}}", e.Tags.Find("name")))
+				}
+			}
+			ways++
 		case *osm.Relation:
 			// target Tag
 			if e.Tags.Find(tagname) == tagval {
-				//
-				// この段階で出力要不要の判定が必要
-				//
+				// GeoJSON output string
 				var geojson string
 
 				srelations++
-				if bnext {
-					geojson += ",\n"
-				} else {
-					bnext = true
-				}
+				geojson += ",\n"
 				// ここはTypeで分岐
 				if e.Tags.Find("type") == "multipolygon" {
 					// MultiPolygon
@@ -186,15 +262,21 @@ func main() {
 				dfile.WriteString("Element:" + strconv.Itoa(int(e.ID)) + "/" + e.Tags.Find("name") + "\n")
 				dfile1.WriteString("Element:" + strconv.Itoa(int(e.ID)) + "/" + e.Tags.Find("name") + "\n")
 
+				// For debug
+				if e.Tags.Find("name") == "札幌市立東橋小学校" {
+					relations++
+				}
+
 				var cntcoord int
 				//var startcoord string
-				var boutfile, bouter, bsite, bopen bool
+				var boutfile, bouter, binner, bsite, bopen bool
 				// ******************************
 				// start coordinates
 				// ******************************
 				startchain := map[string]string{} // start coordinate chain(dictionary)
 				endchain := map[string]string{}   // end coordinate chain(dictionary)
 				openel := map[string]string{}     // open element dictionary
+				var innerel []string              // inner element
 
 				for _, v := range e.Members {
 					// element kind "Way" only processing
@@ -226,7 +308,7 @@ func main() {
 								// MultiPolygon
 								if wayelm[6] == "close" {
 									// closed element
-									if wayelm[2] == "outer" {
+									if wayelm[2] == "outer" || wayelm[2] == "" {
 										// =======================
 										// closed outer element
 										// =======================
@@ -237,22 +319,30 @@ func main() {
 											geojson += ","
 										}
 										geojson += "[[" + wayelm[3] + "]"
+										if binner {
+											geojson += "]"
+										}
+										for _, inner := range innerel {
+											geojson += ",[" + inner + "]"
+										}
 										bouter = true
+										binner = false
 									} else {
 										// =======================
 										// closed inner element
 										// =======================
+										if !bouter {
+											innerel = append(innerel, wayelm[3])
+											continue
+										}
 										if cntcoord > 0 {
 											geojson += ","
 										}
 										geojson += "[" + wayelm[3] + "]"
 										bouter = false
+										binner = true
 									}
 									cntcoord++
-
-									// For debug
-									boutfile = false
-
 								} else {
 									// *******************************
 									// open element
@@ -288,8 +378,6 @@ func main() {
 										openel[wayelm[4]] = wayelm[3]
 									}
 									bopen = true
-									// For debug
-									boutfile = true
 								}
 							} else {
 								// site(MultiLineString)

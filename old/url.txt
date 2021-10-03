@@ -6,6 +6,3 @@ https://wiki.openstreetmap.org/wiki/Types_of_relation
 
 https://wiki.openstreetmap.org/wiki/Relation:site
 
-
-島田市立 金谷小学校
-市立上林小学校
