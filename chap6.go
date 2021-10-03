@@ -116,7 +116,7 @@ func main() {
 						llon, llat = v.Lon, v.Lat
 					}
 				}
-				// first and last coordinate
+				// start and last coordinate
 				mrway[int(re.ID)] += fmt.Sprintf("/[%.7f,%.7f]", flon, flat)
 				mrway[int(re.ID)] += fmt.Sprintf("/[%.7f,%.7f]", llon, llat)
 				//
@@ -145,7 +145,7 @@ func main() {
 	snodes, sways, srelations := 0, 0, 0
 
 	// ====================================
-	// 5.recreate scanner and write GeoJSON
+	// 5.Recreate scanner and write GeoJSON
 	// ====================================
 	f.Seek(0, 0)
 	scanner = osmpbf.New(context.Background(), f, cpu)
@@ -182,20 +182,12 @@ func main() {
 				}
 				geojson += "\"coordinates\":["
 
-				var dflag bool
-				fmt.Println("")
-				dflag = true
+				// for debug
 				dfile.WriteString("Element:" + strconv.Itoa(int(e.ID)) + "/" + e.Tags.Find("name") + "\n")
 				dfile1.WriteString("Element:" + strconv.Itoa(int(e.ID)) + "/" + e.Tags.Find("name") + "\n")
 
-				e.Tags.Find("name")
-				// if e.Tags.Find("name") == "廿日市市立宮内小学校" {
-				// 	fmt.Println("")
-				// 	dflag = true
-				// }
-
 				var cntcoord int
-				//var firstcoord string
+				//var startcoord string
 				var boutfile, bouter, bsite, bopen bool
 				// ******************************
 				// start coordinates
@@ -205,8 +197,9 @@ func main() {
 				// Element:1482014/市立中央台北小学校
 				// multipolygon/way/outer/[140.9097185,37.0167556],[140.9101336,37.0160501],[140.9105440,37.0153525]/[140.9097185,37.0167556]/[140.9105440,37.0153525]/open
 				// sopenel := []string{}           // [0]                     :[140.9097185,37.0167556],[140.9101336,37.0160501],[140.9105440,37.0153525]
-				openelchain := map[string]string{} // [140.9097185,37.0167556]:0/[140.9105440,37.0153525]
-				openel := map[string]string{}      // [140.9105440,37.0153525]:0/[140.9097185,37.0167556]
+				startchain := map[string]string{} // [140.9097185,37.0167556]:0/[140.9105440,37.0153525]
+				endchain := map[string]string{}   // [140.9097185,37.0167556]:0/[140.9105440,37.0153525]
+				openel := map[string]string{}     // [140.9105440,37.0153525]:0/[140.9097185,37.0167556]
 
 				for _, v := range e.Members {
 					// element kind "Way" only processing
@@ -215,9 +208,10 @@ func main() {
 						boutfile = true
 						// get "Way" information from mrway( dictionary )
 						if way, flg := mrway[int(v.Ref)]; flg {
-							if dflag {
-								dfile.WriteString(way + "\n")
-							}
+
+							// for debug
+							dfile.WriteString(way + "\n")
+
 							// split way information
 							wayelm := strings.Split(way, "/")
 							// mrway delimter "/".
@@ -230,25 +224,18 @@ func main() {
 							//  [5]: end coordinate
 							//  [6]: open/close area( "open"/"close" )
 
-							// if wayelm[2] == "inner" && wayelm[6] == "open" {
-							// 	dfile.WriteString(way + "\n")
-							// }
-
-							// if cntcoord > 0 {
-							// 	geojson += ","
-							// }
 							// ここはTypeで分岐
 							if wayelm[0] == "multipolygon" {
 
+								// for debug
 								dfile1.WriteString(wayelm[2] + "/" + wayelm[6] + "/S:" + wayelm[4] + "/E:" + wayelm[5] + "\n")
 								// MultiPolygon
 								if wayelm[6] == "close" {
-									// ******************************************
-									// outer/innerの判定処理が必要
-									// ※続く面がという判定が必要
-									// ******************************************
 									// closed element
 									if wayelm[2] == "outer" {
+										// =======================
+										// closed outer element
+										// =======================
 										if bouter {
 											geojson += "]"
 										}
@@ -258,9 +245,9 @@ func main() {
 										geojson += "[[" + wayelm[3] + "]"
 										bouter = true
 									} else {
-										// if bouter {
-										// 	geojson += "]"
-										// }
+										// =======================
+										// closed inner element
+										// =======================
 										if cntcoord > 0 {
 											geojson += ","
 										}
@@ -276,10 +263,32 @@ func main() {
 									// *******************************
 									// open element
 									// *******************************
-									if _, exi := openelchain[wayelm[4]]; exi {
-										// add element to chain( key:first coordinate , value:last coordinate)
-										openelchain[wayelm[5]] = wayelm[4]
-										// add element( key:first coordinate , value:coordinates)
+									if _, exi := startchain[wayelm[4]]; exi {
+										// =============================
+										// 'openchain' exists start coordinate.
+										// Reverse strat-end
+										// =============================
+										// add element to chain( key:start coordinate , value:last coordinate)
+										startchain[wayelm[5]] = wayelm[4]
+										endchain[wayelm[4]] = wayelm[5]
+										// add element( key:start coordinate , value:coordinates)
+										var revcoo string
+										coo := strings.Split(wayelm[3], ",[")
+										for j := len(coo); j > 0; j-- {
+											if coo[j-1][0] != '[' {
+												revcoo += "["
+											}
+											revcoo += coo[j-1]
+											if j > 1 {
+												revcoo += ","
+											}
+										}
+										openel[wayelm[5]] = revcoo
+									} else if _, exi := endchain[wayelm[5]]; exi {
+										// add element to chain( key:start coordinate , value:last coordinate)
+										startchain[wayelm[5]] = wayelm[4]
+										endchain[wayelm[4]] = wayelm[5]
+										// add element( key:start coordinate , value:coordinates)
 										var revcoo string
 										coo := strings.Split(wayelm[3], ",[")
 										for j := len(coo); j > 0; j-- {
@@ -293,16 +302,15 @@ func main() {
 										}
 										openel[wayelm[5]] = revcoo
 									} else {
-										// add element to chain( key:first coordinate , value:last coordinate)
-										openelchain[wayelm[4]] = wayelm[5]
-										// add element( key:first coordinate , value:coordinates)
+										// add element to chain( key:start coordinate , value:last coordinate)
+										startchain[wayelm[4]] = wayelm[5]
+										endchain[wayelm[5]] = wayelm[4]
+										// add element( key:start coordinate , value:coordinates)
 										openel[wayelm[4]] = wayelm[3]
 									}
 									bopen = true
 									// For debug
 									boutfile = true
-									// For Debug
-									// break
 								}
 							} else {
 								// site(MultiLineString)
@@ -320,23 +328,42 @@ func main() {
 				}
 				// open element
 				if bopen {
-					// seek 'openelchain'
+					// For debug
+					if e.Tags.Find("name") == "廿日市市立阿品台西小学校" {
+						boutfile = true
+					}
+
+					// seek 'startchain'
 					var coordinate string
-					for key, val := range openelchain {
-						// set first coordinates
+					for key, val := range startchain {
+						// set start coordinates
 						coordinate = openel[key]
-						delete(openelchain, key)
+						delete(startchain, key)
 						delete(openel, key)
 						// set length
-						chainlen := len(openelchain)
+						chainlen := len(startchain)
 						for j := 0; j < chainlen; j++ {
-							coordinate += "," + openel[val]
-							val = openelchain[val]
+							if _, exi := openel[val]; exi {
+								coordinate += "," + openel[val]
+								delete(openel, val)
+								oval := val
+								val = startchain[val]
+								delete(startchain, oval)
+							} else {
+								// チェーン引き当てに失敗したらbreak
+								break
+							}
 						}
-						break
+						if cntcoord > 0 {
+							geojson += "],"
+						}
+						geojson += "["
+						geojson += "[" + coordinate + "]"
+						if len(startchain) > 0 {
+							geojson += "],"
+						}
 					}
-					geojson += "["
-					geojson += "[" + coordinate + "]"
+					cntcoord++
 				}
 				// ******************************
 				// close coordinates
@@ -362,10 +389,6 @@ func main() {
 					file.WriteString(geojson)
 				}
 
-				// For debug
-				if dflag {
-					dflag = false
-				}
 				fmt.Println("Relation Type:", e.Tags.Find("type"))
 			}
 			relations++
