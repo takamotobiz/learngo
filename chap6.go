@@ -24,8 +24,8 @@ const debugfname string = "./debug.json"
 const debugfname1 string = "./debug1.json"
 
 // define Tag
-const tagname string = "amenity"
-const tagval string = "school"
+const tagname string = "natural"
+const tagval string = "coastline"
 
 // ====================================
 // マルチポリゴンのみ出力するバージョン
@@ -205,7 +205,12 @@ func main() {
 			}
 			if e.Tags.Find(tagname) == tagval {
 				sways++
-				file.WriteString(",\n")
+				// 最後のレコード出力時にはカンマを出力しない
+				if endl {
+					file.WriteString(",\n")
+				} else {
+					endl = true
+				}
 
 				// 要素情報の出力
 				if e.Polygon() {
@@ -247,7 +252,12 @@ func main() {
 				var geojson string
 
 				srelations++
-				geojson += ",\n"
+				// 最後のレコード出力時にはカンマを出力しない
+				if endl {
+					geojson += ",\n"
+				} else {
+					endl = true
+				}
 				// ここはTypeで分岐
 				if e.Tags.Find("type") == "multipolygon" {
 					// MultiPolygon
